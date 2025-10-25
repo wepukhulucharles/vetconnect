@@ -1,0 +1,91 @@
+{% extends 'main.html' %}
+
+{% block content %}
+<main class="create-room layout">
+  {% comment %} <div class="container">
+    <div class="layout__box">
+      <div class="layout__boxHeader">
+        <div class="layout__boxTitle">
+          <a href="{{request.META.HTTP_REFERER}}">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+              <title>arrow-left</title>
+              <path
+                d="M13.723 2.286l-13.723 13.714 13.719 13.714 1.616-1.611-10.96-10.96h27.625v-2.286h-27.625l10.965-10.965-1.616-1.607z">
+              </path>
+            </svg>
+          </a>
+          <h3>Create/Update Study Room</h3>
+        </div>
+      </div>
+      <div class="layout__body">
+        <form class="form" action="" method="POST">
+          {% csrf_token %}
+
+          {% for field in form %}  
+          <div class="form__group">
+            <label for="room_name">{{field.label}}</label>
+            {{field}}
+          </div>
+          {% endfor %}
+
+
+
+          <div class="form__action">
+            <a class="btn btn--dark" href="{{request.META.HTTP_REFERER}}">Cancel</a>
+            <button class="btn btn--main" type="submit">Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div> {% endcomment %}
+
+  <div class="container">
+
+    <div class = "layout__box__1"
+    style = "
+      width: 90%;
+      max-width: 150rem;
+      height: auto;
+      {% comment %} position: absolute;
+      top: 50%;
+      left: 50%; {% endcomment %}
+      {% comment %} transform: translate(-50%, -46%); {% endcomment %}
+      background-color: var(--color-dark);
+      border-radius: 1rem;
+      box-shadow: 1px 1px 6px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    "
+    >
+      <div class="layout__boxHeader">
+        <div class="layout__boxTitle">
+          <h3>Make Appointment</h3>
+        </div>
+      </div>
+  
+      <div class="layout__body">
+        <h2 class="auth__tagline">Find your veterinarian</h2>
+        <form class="form" action="" method="POST">
+          {% csrf_token %}
+  
+          <div class="form_group__wrapper" style="display:flex; justify-content: space-between; flex-wrap: wrap;">
+            {%  for field in form%}
+            <div class="form__group form__group" style="width: 30%; min-width: 30rem;">
+              <label for="room_name">{{field.label}}</label>
+              {{field}}
+            </div>
+            {% endfor %}
+          </div>
+  
+          <div class="form__action">
+            <a class="btn btn--dark" href="{{request.META.HTTP_REFERER}}">Cancel</a>
+            <button class="btn btn--main" type="submit">Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+
+  </div>
+
+</main>
+{% endblock content %}

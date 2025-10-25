@@ -1,0 +1,40 @@
+.form_group_wrapper{
+    display:flex; 
+    justify-content: space-between; 
+    flex-wrap: wrap;
+}
+
+.form_group_wrapper > .form__group{
+    width: 30%; 
+    min-width: 30rem;
+}
+
+.form_group_header{
+    width: 100%;
+    text-transform: lowercase;
+    text-transform: capitalize;
+    margin: 10px;
+}
+
+.layout__box__1{
+    width: 90%;
+      max-width: 150rem;
+      height: auto;
+      /* position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -46%); */
+      background-color: var(--color-dark);
+      border-radius: 1rem;
+      box-shadow: 1px 1px 6px 3px rgba(49, 41, 41, 0.1);
+      overflow: hidden;
+}
+
+.activities__box__container{
+    max-height: 80vh; 
+    overflow-y:auto;
+}
+
+.form__group .checkbox-label, .form__group .checkbox-input{
+    color: green;
+}

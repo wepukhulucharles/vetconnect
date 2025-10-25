@@ -1,0 +1,44 @@
+{% extends 'main.html' %}
+
+{% block content %}
+<main class="profile-page layout layout--3">
+  <div class="container">
+    <!-- Topics Start -->
+    {% include 'base/topics_component.html' %}
+    <!-- Topics End -->
+
+    <!-- Clinic List Start -->
+     <div>
+        {% for clinic in clinics  %}
+            <div class = "card" style = "display:flex;  border:1px solid #3f4156; border-radius: 5px; padding: 10px; background-color: #3f4156; margin-bottom: 5px;">
+
+                <div class="card-header" style="margin-right: 10px;">
+                    <img src="{{clinic.images.url}}" alt="image" style = " height:160px; object-fit:cover;"/>
+                </div>
+
+                <div class="card-body" style="align-self: center;">
+                    <h4 class="card-title">{{clinic.name}}</h4>
+                    <h5 class= "card-body">{{clinic.town}}, {{clinic.county}} County</h5>
+                    <h5 class= "card-body">Specializes in: {{clinic.specialization}}</h5>
+                    <h5 class= "card-body">Services Offered: {{ clinic.services }}</h5>
+                    
+                </div>
+
+                
+
+                
+
+            </div>
+        {% endfor %}
+     </div>
+    
+    <!-- Clinic List End -->
+
+    
+
+    <!-- Activities Start -->
+    {% include 'base/activity_component.html' %}
+    <!-- Activities End -->
+  </div>
+</main>
+{% endblock content %}

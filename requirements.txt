@@ -1,0 +1,6 @@
+requests
+cryptography
+python-decouple
+Sphinx
+sphinx_rtd_theme
+tox

@@ -1,0 +1,48 @@
+<div class="topics">
+    <div class="topics__header">
+        <h2></h2>
+    </div>
+    <ul class="topics__list">
+        {% if request.user.is_superuser %}
+        <li>
+            <a href="http://127.0.0.1:8000/admin" class="active">Admin </a>
+        </li>
+        {% endif %}
+        {% comment %} <li>
+            <a href="{% url 'home' %}" class="active">All Vets <span>{{all_vets_count}}</span></a>
+        </li> {% endcomment %}
+
+        <li>
+            <a href="{% url 'consultations' %}">Consultations <span>{{pending_consultations_count}}</span></a>
+        </li>
+
+        <li>
+            <a href="{% url 'appointments' %}">Appointments <span>{{appointments_count}}</span></a>
+        </li>
+
+        {% comment %} <li>
+            <a href="{%  url 'clinics' %}">Clinics <span>{{clinics_count}}</span></a>
+        </li> {% endcomment %}
+
+        <li>
+            <a href="{% url 'colleague_requests' %}">Colleague Requests <span>{{ colleague_requests_count }}</span></a>
+        </li>
+
+        {% comment %} <li>
+            <a href="">Notifications <span>{{notifications.count}}</span></a>
+        </li> {% endcomment %}
+        <!-- {% for topic in topics %}
+        <li>
+            <a href="">{{topic.name}}<span>{{topic.room_set.all.count}}</span></a>
+        </li>
+        {% endfor %} -->
+
+    </ul>
+    <a class="btn btn--link" href="">
+        More
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+            <title>chevron-down</title>
+            <path d="M16 21l-13-13h-3l16 16 16-16h-3l-13 13z"></path>
+        </svg>
+    </a>
+</div>

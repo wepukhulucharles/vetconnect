@@ -1,6 +1,10 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
+
 import json
+import requests
+import base64
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
@@ -33,10 +37,11 @@ vets = VetUser.vets.all()
 # Generate M-Pesa access token
 consumer_key = settings.MPESA_CONSUMER_KEY
 consumer_secret = settings.MPESA_CONSUMER_SECRET
+mpesa_base_url = settings.MPESA_BASE_URL
 
 def generate_access_token():
     try:
-        credentials = f"{CONSUMER_KEY}:{CONSUMER_SECRET}"
+        credentials = f"{consumer_key}:{consumer_secret}"
         encoded_credentials = base64.b64encode(credentials.encode()).decode()
 
         headers = {
@@ -44,7 +49,7 @@ def generate_access_token():
             "Content-Type": "application/json",
         }
         response = requests.get(
-            f"{MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials",
+            f"{mpesa_base_url}/oauth/v1/generate?grant_type=client_credentials",
             headers=headers,
         ).json()
 
@@ -69,7 +74,7 @@ def stk_push_success(amount, phone_number, transaction_id):
 # Query STK Push status
 def query_stk_push(checkout_request_id):
     print("Quering...")
-    MPESA_SHORTCODE = settings.MPESA_SHORTCODE
+    MPESA_SHORTCODE = settings.MPESA_EXPRESS_SHORTCODE
     MPESA_PASSKEY = settings.MPESA_PASSKEY
 
     try:

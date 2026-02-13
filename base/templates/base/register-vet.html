@@ -2,160 +2,147 @@
 
 {% block content %}
 <main class="auth layout">
-
-  {% comment %} <div class="container">
-    <div class="layout__box">
-      <div class="layout__boxHeader">
-        <div class="layout__boxTitle">
-          <h3>Register Vet</h3>
-        </div>
-      </div>
-      <div class="layout__body">
-        <h2 class="auth__tagline">Find your veterinarian</h2>
-
-        <form class="form" action="" method="POST">
-          {% csrf_token %}
-
-          <div>
-
-          </div>
-
-          {%  for field in form1%}
-          <div class="form__group form__group">
-            <label for="room_name">{{field.label}}</label>
-            {{field}}
-          </div>
-          {% endfor %}
-
-          {%  for field in form2%}
-          <div class="form__group form__group">
-            <label for="room_name">{{field.label}}</label>
-            {{field}}
-          </div>
-          {% endfor %}
-
-
-
-          <button class="btn btn--main" type="submit">
-            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-              <title>lock</title>
-              <path
-                d="M27 12h-1v-2c0-5.514-4.486-10-10-10s-10 4.486-10 10v2h-1c-0.553 0-1 0.447-1 1v18c0 0.553 0.447 1 1 1h22c0.553 0 1-0.447 1-1v-18c0-0.553-0.447-1-1-1zM8 10c0-4.411 3.589-8 8-8s8 3.589 8 8v2h-16v-2zM26 30h-20v-16h20v16z">
-              </path>
-              <path
-                d="M15 21.694v4.306h2v-4.306c0.587-0.348 1-0.961 1-1.694 0-1.105-0.895-2-2-2s-2 0.895-2 2c0 0.732 0.413 1.345 1 1.694z">
-              </path>
-            </svg>
-
-            Submit
-          </button>
-        </form>
-
-        <div class="auth__action">
-          <p>Haven't signed up yet?</p>
-          <a href="{% url 'register' %}" class="btn btn--link">Sign Up</a>
-        </div>
-      </div>
-    </div>
-  </div> {% endcomment %}
-
   <div class="container">
 
-    <div class = "layout__box__1"
-    style = "
-      width: 90%;
-      max-width: 150rem;
-      height: auto;
-      {% comment %} position: absolute;
-      top: 50%;
-      left: 50%; {% endcomment %}
-      {% comment %} transform: translate(-50%, -46%); {% endcomment %}
-      background-color: var(--color-dark);
-      border-radius: 1rem;
-      box-shadow: 1px 1px 6px 3px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-    "
-    >
+    <div class="layout__box__1">
       <div class="layout__boxHeader">
         <div class="layout__boxTitle">
           <h3>Register Vet</h3>
         </div>
       </div>
-  
+
       <div class="layout__body">
         <h2 class="auth__tagline">Find your veterinarian</h2>
-        <form class="form" action="" method="POST">
+
+        <form action="" method="POST" enctype="multipart/form-data">
           {% csrf_token %}
 
-          
-          
-          <div class="form_group_wrapper" >
-              <h3 class = "form_group_header auth__tagline">Personal Info</h3>
-              {%  for field in form1%}
-              <div class="form__group form__group">
-                <label for="room_name">{{field.label}}</label>
-                {{field}}
+          <!-- Personal Info -->
+          <div class="form_group_wrapper">
+            <h3 class="form_group_header auth__tagline">Personal Info</h3>
+            {% for field in form1 %}
+            <div class="form__group">
+              <label>{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                    <ul class="errorlist">{{ field.errors }}</ul>
+                  {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Vet Profile -->
+          <div class="form_group_wrapper">
+            <h3 class="form_group_header auth__tagline">Vet Profile</h3>
+            {% for field in form2 %}
+            <div class="form__group">
+              <label>{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <ul class="errorlist">{{ field.errors }}</ul>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Education Formset -->
+          <div class="form_group_wrapper">
+            <h3 class="form_group_header auth__tagline">Educational Background</h3>
+            {{ form3.management_form }}
+            <div id="education-forms" class="flex-formset">
+              {% for form in form3 %}
+              <div class="formset-item">
+                {% for field in form %}
+                <div class="form__group">
+                  <label>{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.errors %}
+                    <ul class="errorlist">{{ field.errors }}</ul>
+                  {% endif %}
+                </div>
+                {% endfor %}
+                <button type="button" class="btn btn--danger remove-form">Remove</button>
               </div>
               {% endfor %}
-
-            
-
-
-          </div>
-          <div class="form_group_wrapper">
-            <h3 class = "form_group_header auth__tagline">Vet Profile</h3>
-            {%  for field in form2%}
-            <div class="form__group form__group">
-              <label for="room_name">{{field.label}}</label>
-              {{field}}
             </div>
-            {% endfor %}
+            <button type="button" id="add-education" class="btn btn--secondary">Add Education</button>
           </div>
 
-          <div class="form_group_wrapper" >
-            <h3 class = "form_group_header auth__tagline">Educational background</h3>
-            {%  for field in form3%}
-            <div class="form__group form__group">
-              <label for="room_name">{{field.label}}</label>
-              {{field}}
+          <!-- Portfolio Formset -->
+          <!-- <div class="form_group_wrapper">
+            <h3 class="form_group_header auth__tagline">Portfolio</h3>
+            {{ form4.management_form }}
+            <div id="portfolio-forms" class="flex-formset">
+              {% for form in form4 %}
+              <div class="formset-item">
+                {% for field in form %}
+                <div class="form__group">
+                  <label for = "{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.errors %}
+                    <ul class="errorlist">{{ field.errors }}</ul>
+                  {% endif %}
+                </div>
+                {% endfor %}
+                <button type="button" class="btn btn--danger remove-form">Remove</button>
+              </div>
+              {% endfor %}
             </div>
-            {% endfor %}
-          </div>
+            <button type="button" id="add-portfolio" class="btn btn--secondary">Add Portfolio</button>
+          </div> -->
 
-          <div class="form_group_wrapper" >
-            <h3 class = "form_group_header auth__tagline">Portfolio</h3>
-            {%  for field in form4%}
-            <div class="form__group form__group">
-              <label for="room_name">{{field.label}}</label>
-              {{field}}
-            </div>
-            {% endfor %}
-          </div>
-  
-          
-  
-          
-  
-  
-  
-          <button class="btn btn--main" type="submit">
-            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-              <title>lock</title>
-              <path
-                d="M27 12h-1v-2c0-5.514-4.486-10-10-10s-10 4.486-10 10v2h-1c-0.553 0-1 0.447-1 1v18c0 0.553 0.447 1 1 1h22c0.553 0 1-0.447 1-1v-18c0-0.553-0.447-1-1-1zM8 10c0-4.411 3.589-8 8-8s8 3.589 8 8v2h-16v-2zM26 30h-20v-16h20v16z">
-              </path>
-              <path
-                d="M15 21.694v4.306h2v-4.306c0.587-0.348 1-0.961 1-1.694 0-1.105-0.895-2-2-2s-2 0.895-2 2c0 0.732 0.413 1.345 1 1.694z">
-              </path>
-            </svg>
-  
-            Submit
-          </button>
+          <!-- Submit -->
+          <button class="btn btn--main" type="submit">Submit</button>
         </form>
+
       </div>
     </div>
-    
-
   </div>
 </main>
+
+<!-- JS for dynamic formsets -->
+<script>
+function setupFormset(containerId, addBtnId) {
+    const container = document.getElementById(containerId);
+    const addButton = document.getElementById(addBtnId);
+
+    addButton.addEventListener('click', () => {
+        const totalFormsInput = container.closest('form').querySelector('[name$="-TOTAL_FORMS"]');
+        let total = parseInt(totalFormsInput.value);
+
+        const firstForm = container.querySelector('.formset-item');
+        const newForm = firstForm.cloneNode(true);
+
+        // Clear inputs
+        newForm.querySelectorAll('input, select, textarea').forEach(input => input.value = '');
+
+        // Update indices
+        newForm.innerHTML = newForm.innerHTML.replace(/-\d+-/g, `-${total}-`);
+
+        container.appendChild(newForm);
+
+        // Increment TOTAL_FORMS
+        totalFormsInput.value = total + 1;
+
+        // Remove listener
+        newForm.querySelector('.remove-form').addEventListener('click', () => {
+            newForm.remove();
+            totalFormsInput.value = parseInt(totalFormsInput.value) - 1;
+        });
+    });
+
+    // Existing remove buttons
+    container.querySelectorAll('.remove-form').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.closest('.formset-item').remove();
+            const totalFormsInput = container.closest('form').querySelector('[name$="-TOTAL_FORMS"]');
+            totalFormsInput.value = parseInt(totalFormsInput.value) - 1;
+        });
+    });
+}
+
+setupFormset('education-forms', 'add-education');
+setupFormset('portfolio-forms', 'add-portfolio');
+</script>
+
 {% endblock content %}

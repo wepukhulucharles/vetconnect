@@ -38,3 +38,68 @@
 .form__group .checkbox-label, .form__group .checkbox-input{
     color: green;
 }
+
+/* General form wrapper */
+.form_group_wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* Main form groups (Personal Info / Vet Profile) */
+.form_group_wrapper > .form__group {
+    flex: 1 1 30%;
+    min-width: 200px; /* allows smaller screens */
+}
+
+/* Headers */
+.form_group_header {
+    width: 100%;
+    text-transform: capitalize;
+    margin: 10px 0;
+}
+
+/* Flex-formset for Education and Portfolio */
+.flex-formset {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* Each formset item */
+.flex-formset .formset-item {
+    flex: 1 1 45%;  /* two columns on desktop */
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #444;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: #1e1e1e;
+}
+
+/* Standard form group */
+.form__group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0.5rem;
+}
+
+.form__group input,
+.form__group select,
+.form__group textarea {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid #555;
+    background-color: #2a2a2a;
+    color: #fff;
+}
+
+/* Remove button */
+.remove-form {
+    align-self: flex-end;
+    margin-top: 0.5rem;
+}
+
+

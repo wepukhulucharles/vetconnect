@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
+import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.db import transaction
 from django.db.models import Q
 from django.contrib.auth import authenticate, login, logout
 from .models import *
@@ -370,52 +372,91 @@ def registeruser(request):
 
     return render(request, 'base/login_register.html', context)
 
+
+
 @login_required(login_url="login-page")
 @permission_required("base.add_vet")
 def registerVet(request):
-    userform = MyUserCreationForm()
-    vetprofileform = VetForm()
-    educationbackgrounddetailform = EducationBackgroundDetailForm()
-    portfolioform = PortfolioForm()
-    
-    if request.method == 'POST':
+
+    if request.method == "POST":
+
         userform = MyUserCreationForm(request.POST, request.FILES)
         vetprofileform = VetForm(request.POST)
-        educationbackgrounddetailform = EducationBackgroundDetailForm(request.POST)
-        portfolioform = PortfolioForm(request.POST)
-        if userform.is_valid() and vetprofileform.is_valid():
-            vetuser = VetUser.objects.create_user(
-                username = userform.cleaned_data.get("email"),
-                first_name = userform.cleaned_data.get("first_name"),
-                middle_name = userform.cleaned_data.get("middle_name"),
-                surname = userform.cleaned_data.get("surname"),
-                email = userform.cleaned_data.get("email"),
-                county = userform.cleaned_data.get("county"),
-                town = userform.cleaned_data.get("town"),
-                bio = userform.cleaned_data.get("bio"),
-                avatar = userform.cleaned_data.get("avatar")
-            )
-            vetuser.set_password(userform.cleaned_data.get("password1"))
-            vetuser.save()
-            vetprofile = Vet.objects.get(user=vetuser)
-            vetprofile.salutation = vetprofileform.cleaned_data.get("salutation")
-            vetprofile.start_practice = vetprofileform.cleaned_data.get("start_practice")
-            vetprofile.services = vetprofileform.cleaned_data.get("services")
-            vetprofile.vet_speciality = vetprofileform.cleaned_data.get("vet_speciality")
-            vetprofile.licence_no = vetprofileform.cleaned_data.get("licence_no")
-            
-            vetprofile.save()
-            return redirect('home')
-        print(userform.errors)
-        print(vetprofileform.errors)
-        messages.error(request, 'Something went wrong!')
+
+        education_formset = EducationFormSet(request.POST)
+        # portfolio_formset = PortfolioFormSet(request.POST, request.FILES)
+
+        # ✅ Validate EVERYTHING first
+        if (
+            userform.is_valid()
+            and vetprofileform.is_valid()
+            and education_formset.is_valid()
+           
+        ):
+
+            try:
+                with transaction.atomic():
+
+                    # 1️⃣ Create Custom User
+                    vetuser = VetUser.objects.create_user(
+                        username=userform.cleaned_data.get("email"),
+                        first_name=userform.cleaned_data.get("first_name"),
+                        middle_name=userform.cleaned_data.get("middle_name"),
+                        surname=userform.cleaned_data.get("surname"),
+                        email=userform.cleaned_data.get("email"),
+                        county=userform.cleaned_data.get("county"),
+                        town=userform.cleaned_data.get("town"),
+                        bio=userform.cleaned_data.get("bio"),
+                        avatar=userform.cleaned_data.get("avatar"),
+                        password=userform.cleaned_data.get("password1"),
+                    )
+
+                    # 2️⃣ Get related Vet profile (created via signal)
+                    vetprofile = Vet.objects.get(user=vetuser)
+
+                    # 3️⃣ Update Vet profile fields from VetForm
+                    vetprofile.salutation = vetprofileform.cleaned_data.get("salutation")
+                    vetprofile.start_practice = vetprofileform.cleaned_data.get("start_practice")
+                    vetprofile.services = vetprofileform.cleaned_data.get("services")
+                    vetprofile.vet_speciality = vetprofileform.cleaned_data.get("vet_speciality")
+                    vetprofile.licence_no = vetprofileform.cleaned_data.get("licence_no")
+                    vetprofile.save()
+
+                    # 4️⃣ Attach formsets to vet profile
+                    education_formset.instance = vetprofile
+                    # portfolio_formset.instance = vetprofile
+
+                    # 5️⃣ Save formsets
+                    education_formset.save()
+                    # portfolio_formset.save()
+
+                    return redirect("home")
+
+            except Exception as e:
+                messages.error(request, f"Error saving data: {e}")
+
+        else:
+            print(f"userform_errors: {userform.errors}")
+            print(f"vetform_errors: {vetprofileform.errors}")
+            print(f"education_formset_errors: {education_formset.errors}")
+            # print(f"portfolio_formset_errors: {portfolio_formset.errors}")
+            messages.error(request, "Please correct the errors below.")
+
+    else:
+        userform = MyUserCreationForm()
+        vetprofileform = VetForm()
+        education_formset = EducationFormSet()
+        # portfolio_formset = PortfolioFormSet()
+
     context = {
-        'form1':userform,
-        "form2":vetprofileform,
-        "form3":educationbackgrounddetailform,
-        "form4":portfolioform
-    } 
-    return render(request, 'base/register-vet.html', context)   
+        "form1": userform,
+        "form2": vetprofileform,
+        "form3": education_formset,
+        # "form4": portfolio_formset,
+    }
+
+    return render(request, "base/register-vet.html", context)
+  
 
 def vetprofile(request, pk):
     # AM GOING TO MODIFY THIS SUCH THAT I ONLY QUERY THE USER, SEE THIER ROLE AND DISPLAY THEIR PROFILES ACCORDINGLY

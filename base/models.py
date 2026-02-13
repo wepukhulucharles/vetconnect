@@ -93,8 +93,8 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Admin"
         STAFF = "STAFF", "Staff"
-        VET = "VET", "Vet"
-        APP_USER = "APPUSER", "App User"
+        VET = "Vets", "Veterinarians"
+        APP_USER = "Users", "Regular Users"
         
     base_role = Role.ADMIN
     

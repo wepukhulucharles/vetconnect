@@ -3,12 +3,124 @@ from django.shortcuts import render, redirect
 from .models import EducationBackgroundDetail, Portfolio, VetUser, Vet, Appointment, Consultation, VetComment, ConsultationSatisfactionComment, ConsultationFee, ReferralColleagueRequest, Notification
 from django.contrib.auth.models import Group
 
-from django.db.models.signals import pre_save, post_save, m2m_changed
+from django.db.models.signals import pre_save, post_save, m2m_changed, post_migrate
 from django.db.models import Sum, Avg
 from django.dispatch import receiver
 
 
 from guardian.shortcuts import assign_perm
+
+
+from django.contrib.auth.models import Group, Permission
+from django.apps import apps
+
+@receiver(post_migrate)
+def create_default_groups(sender, **kwargs):
+    """
+    Automatically create default groups and assign permissions
+    after migrations run.
+    """
+
+    # Only run for your app (important!)
+    if sender.name != "base":
+        return
+
+    # ==========================
+    # Vet Group
+    # ==========================
+    vet_group, _ = Group.objects.get_or_create(name="Vets")
+
+    # Give full permissions to Vet model
+    vet_permissions = Permission.objects.filter(
+        content_type__app_label="base",
+        codename__in=[
+
+            "add_appointment",
+            "view_appointment",
+            "approve_appointment",
+            "change_appointment",
+            "delete_appointment",
+
+            "view_consultation",
+            "approve_consultation",
+            "change_consultation",
+            "delete_consultation",
+
+            "add_consultation_fee",
+            "change_consultation_fee",
+            "delete_consultation_fee",
+
+            "view_consultation_satisfaction_comment",
+            
+            "add_education_background_detail",
+            "view_education_background_detail",
+            "change_education_background_detail",
+            
+            "add_portfolio",
+            "view_portfolio",
+            "change_portfolio",
+
+            "add_referral_colleague_request",
+            "view_referral_colleague_request",
+            "change_referral_colleague_request",
+            
+            "add_vet_comment",
+            "view_vet_comment",
+            "change_view_vet_comment",
+            
+          
+            "view_vet",
+
+            "add_vet_clinic",
+            "view_vet_clinic",
+            "change_vet_clinic"
+            
+        ],
+    )
+
+    vet_group.permissions.add(*vet_permissions)
+
+    # ==========================
+    # Regular Users
+    # ==========================
+    user_group, _ = Group.objects.get_or_create(name="Users")
+
+    user_permissions = Permission.objects.filter(
+        content_type__app_label="base",
+        codename__in=[
+           
+            "view_appointment",
+            
+
+            "view_consultation",
+            "add_consultation",
+            "request_consultation",
+          
+
+            "view_consultation_fee",
+            
+            "view_consultation_satisfaction_comment",
+            "add_consultation_satisfaction_comment",
+            
+            
+            "view_education_background_detail",
+           
+            "view_portfolio",
+
+            "view_vet_comment",
+            
+          
+            "view_vet",
+
+            "view_vet_clinic",
+            
+        ],
+    )
+
+    user_group.permissions.add(*user_permissions)
+
+    print("Default groups and permissions created/updated.")
+
 
 
 @receiver(post_save, sender=VetUser)

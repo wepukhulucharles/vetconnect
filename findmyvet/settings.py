@@ -9,6 +9,10 @@ https://docs.djangoproject.com/en/5.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from pathlib import Path
 
@@ -150,9 +154,11 @@ AUTHENTICATION_BACKENDS = (
 )
 
 # MPESA CREDENTIALS
-MPESA_ENVIRONMENT = 'sandbox'
-MPESA_CONSUMER_KEY = 'OSmjtjtpf8mlHQTuGgAQ5Or9CQvH62q7Fvbgnlvi2SGil6Pz'
-MPESA_CONSUMER_SECRET = 'vTgTFOuEFx3jwla1DcvS4HSoAkqxXHKZNaqzahAmLSBkS750BDLB7OAfFIEGK4Gz'
-LNM_PHONE_NUMBER = '254793953336'
-MPESA_PASSKEY = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
-MPESA_EXPRESS_SHORTCODE = '174379'
+MPESA_ENVIRONMENT = os.getenv("MPESA_ENVIRONMENT")
+MPESA_CONSUMER_KEY = os.getenv("MPESA_CONSUMER_KEY")
+MPESA_CONSUMER_SECRET = os.getenv("MPESA_CONSUMER_SECRET")
+MPESA_SHORTCODE = os.getenv("MPESA_SHORTCODE")
+MPESA_EXPRESS_PASSKEY = os.getenv("MPESA_EXPRESS_PASSKEY")
+LNM_PHONE_NUMBER = os.getenv("LNM_PHONE_NUMBER")
+MPESA_CALLBACK_URL = os.getenv("MPESA_CALLBACK_URL")
+

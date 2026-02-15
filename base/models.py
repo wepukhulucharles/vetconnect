@@ -340,7 +340,7 @@ class ConsultationFee(models.Model):
     mpesa_transaction_code = models.CharField(max_length=10, default="xxxxxxxxxx")
     timestamp = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True, null=True)
-    consultation = models.OneToOneField('ConsultationFee', on_delete=models.SET_NULL, null=True)
+    consultation = models.OneToOneField('Consultation', on_delete=models.SET_NULL, null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators = [validate_amount])
     client = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="client")
     vet = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="consulting_vet")

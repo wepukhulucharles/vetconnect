@@ -48,10 +48,28 @@ def generate_access_token():
             "Authorization": f"Basic {encoded_credentials}",
             "Content-Type": "application/json",
         }
+        # response = requests.get(
+        #     f"{mpesa_base_url}/oauth/v1/generate?grant_type=client_credentials",
+        #     headers=headers,
+        # ).json()
+
         response = requests.get(
             f"{mpesa_base_url}/oauth/v1/generate?grant_type=client_credentials",
             headers=headers,
-        ).json()
+        )
+
+        if response.status_code != 200:
+            raise Exception(f"M-Pesa API error: {response.status_code} {response.text}")
+        try:
+            data = response.json()
+        except Exception as e:
+            raise Exception(f"Failed to parse M-Pesa response as JSON: {response.text}")
+        if "access_token" in data:
+            return data["access_token"]
+        else:
+            raise Exception("Access token missing in response.")
+        # ...existing code...
+
 
         if "access_token" in response:
             return response["access_token"]
@@ -462,7 +480,7 @@ def registerVet(request):
 
     return render(request, "base/register-vet.html", context)
   
-
+@login_required(login_url="login-page")
 def vetprofile(request, pk):
     # AM GOING TO MODIFY THIS SUCH THAT I ONLY QUERY THE USER, SEE THIER ROLE AND DISPLAY THEIR PROFILES ACCORDINGLY
     # vet = Vet.objects.get(id=pk)
@@ -475,7 +493,7 @@ def vetprofile(request, pk):
     role = user.role
     page = role
     context  = sideMenuComponents(request)
-    if role == "VET":
+    if role == "Vets":
         vet = Vet.objects.get(user=user)
         
         comments_from_clients = get_objects_for_user(
@@ -489,7 +507,7 @@ def vetprofile(request, pk):
         context['vet'] = vet
         context['comments'] = comments_from_clients
     
-    elif role == "APPUSER":
+    elif role == "Users":
         comments_for_vets = get_objects_for_user(
             user,
             "base.dg_view_consultationcomment",
@@ -502,6 +520,7 @@ def vetprofile(request, pk):
     context["page"] = page
     return render(request, 'base/profile.html', context)
 
+@login_required(login_url="login-page")
 def colleagueRequests(request):
     colleague_requests = get_objects_for_user(
         request.user,
@@ -522,6 +541,7 @@ def colleagueRequests(request):
     }
     return render(request, 'base/colleague-requests.html', context)
 
+@login_required(login_url="login-page")
 def referralColleagueRequest(request, pk):
     colleague_requested_user = User.objects.get(id=pk)
     requesting_vet_user = request.user
@@ -545,6 +565,7 @@ def referralColleagueRequest(request, pk):
     else:
         return redirect("home")
 
+@login_required(login_url="login-page")
 def confirmReferralColleagueRequest(request, pk):
     colleague_request = ReferralColleagueRequest.objects.get(id=pk)
     q = request.GET.get('q') if request.GET.get('q') != None else ''
@@ -556,7 +577,7 @@ def confirmReferralColleagueRequest(request, pk):
     colleague_request.save()
     return redirect("colleague_requests")
     
-
+@login_required(login_url="login-page")
 def consultation(request, pk):
     consultation = Consultation.objects.get(id=pk)
     # still debating whether to be other consultations or previous consultations 
@@ -643,40 +664,42 @@ def requestConsultation(request):
             
             # PENDING CONSULTATIONS BETWEEN THE SAME VET AND SAME CLIENT
             pending_consultations = Consultation.objects.filter(
-                # client = consultation_request.client,
-                # vet = consultation_request.vet,
-                # status = 'PENDING'
                 client = form.cleaned_data.get("client"),
                 vet = form.cleaned_data.get("vet"),
                 paid_for = True,
                 status = "PENDING"
             )
-            print(pending_consultations)
+           
             if pending_consultations.count() == 0:
-                # consultation_request.save()
                 transaction_id = get_transaction_id()
                 transaction = form.save(commit = False)
                 transaction.transaction_id = transaction_id
                 transaction.save()
                 
-                amount = int(transaction.amount)
-                phone_number = transaction.payment_number
+                consultation = Consultation.objects.create(
+                    client = form.cleaned_data.get("client"),
+                    vet = form.cleaned_data.get("vet")
+                )
+                consultation.save()
                 
-                # amount = int(form.cleaned_data.get("amount"))
-                # phone_number = form.cleaned_data.get("payment_number")
+                messages.success(request, "consultation request sent successfully!")
+                return redirect('home')
 
-                response = stk_push_success(amount, phone_number, transaction_id)
-                print(response)
+                # ...MPESA CONFIGURATION ---- WILL BE ACTIVATED ON DEPLOYMENT...
 
-                if response.get("ResponseCode") == "0":
-                    # return redirect('process_stk_push')
-                    checkout_request_id = response["CheckoutRequestID"]
-                    return render(request, 'base/pending.html', {"checkout_request_id": checkout_request_id})
-                else:
-                    errorMessage = response.get("errorMessage", "Failed to send STK push. Please try again.")
-                    messages.error(request, errorMessage)
-                    return render(request, 'base/consultation-form.html', {"form": form})
-                
+                # amount = int(transaction.amount)
+                # phone_number = transaction.payment_number
+
+                # response = stk_push_success(amount, phone_number, transaction_id)
+                # print(response)
+
+                # if response.get("ResponseCode") == "0":
+                #     checkout_request_id = response["CheckoutRequestID"]
+                #     return render(request, 'base/pending.html', {"checkout_request_id": checkout_request_id})
+                # else:
+                #     errorMessage = response.get("errorMessage", "Failed to send STK push. Please try again.")
+                #     messages.error(request, errorMessage)
+                #     return render(request, 'base/consultation-form.html', {"form": form})               
                 
             else:
                 messages.error(request, 'Sorry there already is a pending request!')
@@ -701,7 +724,7 @@ def confirmConsultation(request, pk):
     context = {
         'obj':consultation
     }
-    return render(request, 'base/confirm-status.html', context)
+    return redirect('consultation', pk=consultation.id)
 
 def addConsultant(request, pk):
     consultation = Consultation.objects.get(id=pk)

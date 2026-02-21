@@ -13,3 +13,7 @@ db.sqlite3
 
 # Virtual environment
 venv/
+
+#AI ASSISTANCE
+AUDIT_REPORT.md
+IMPLEMENTATIN_GUIDE.md

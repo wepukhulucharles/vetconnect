@@ -48,10 +48,6 @@ def generate_access_token():
             "Authorization": f"Basic {encoded_credentials}",
             "Content-Type": "application/json",
         }
-        # response = requests.get(
-        #     f"{mpesa_base_url}/oauth/v1/generate?grant_type=client_credentials",
-        #     headers=headers,
-        # ).json()
 
         response = requests.get(
             f"{mpesa_base_url}/oauth/v1/generate?grant_type=client_credentials",
@@ -66,13 +62,6 @@ def generate_access_token():
             raise Exception(f"Failed to parse M-Pesa response as JSON: {response.text}")
         if "access_token" in data:
             return data["access_token"]
-        else:
-            raise Exception("Access token missing in response.")
-        # ...existing code...
-
-
-        if "access_token" in response:
-            return response["access_token"]
         else:
             raise Exception("Access token missing in response.")
 
@@ -156,14 +145,15 @@ def get_transaction_id():
 
 def sideMenuComponents(request):
     q = request.GET.get('q') if request.GET.get('q') != None else ''
-    all_vets = Vet.objects.all()
-    all_vets_count = all_vets.count
+    
+    # OPTIMIZED: Use select_related and prefetch_related to avoid N+1 queries
+    all_vets = Vet.objects.select_related('user').all()
+    all_vets_count = all_vets.count()
 
     user_county = request.user.county
     user_town = request.user.town
 
     # vets user may know
-
     known_vets = all_vets.filter(
         Q(user__county = user_county)|
         Q(user__town = user_town)
@@ -176,78 +166,88 @@ def sideMenuComponents(request):
         Q(vet_speciality__icontains = q)
     )
     
+    # OPTIMIZED: Use select_related for consultation queries
     consultations = get_objects_for_user(
         request.user,
         "base.dg_view_consultation",
         klass = Consultation
-    )
+    ).select_related('vet', 'client')
     
-    if request.user.role == "APPUSER":
-        consultations_count_with_vets = Counter([consultation.vet if consultation.client == request.user else '' for consultation in consultations.filter(status = "ACCEPTED")])
-        print(consultations_count_with_vets)
+    if request.user.role == "Users":
+        # OPTIMIZED: Count vets in single query
+        consultations_count_with_vets = Counter([
+            consultation.vet for consultation in consultations.filter(status="ACCEPTED") 
+            if consultation.client == request.user
+        ])
     else:
         consultations_count_with_vets = 0
             
     pending_consultations = consultations.filter(status = "PENDING")
-    # consultations = Consultation.objects.filter(
-    #     Q(client__email = request.user.email)|
-    #     Q(vet__user__email = request.user.email)
-    # )
     
     appointments = get_objects_for_user(
         request.user,
         "base.dg_view_appointment",
         klass = Appointment
-    ).filter(
+    ).select_related('client', 'vet').filter(
         Q(scheduled_date__gte=today) &
         Q(scheduled_time_from__gte=time)
     ).filter(
         status = "PENDING"
     )
     
+    # OPTIMIZED: Use select_related for colleague requests
     colleague_requests = get_objects_for_user(
         request.user,
         "base.dg_view_colleague_request",
         klass = ReferralColleagueRequest
+    ).select_related('requesting_vet', 'colleague_requested')
+    
+    # OPTIMIZED: Filter in database instead of Python
+    pending_rejected_colleague_requests_qs = colleague_requests.filter(
+        Q(requesting_vet = request.user) | Q(colleague_requested = request.user)
     )
     
-    # NO NEED TO FILTER BY STATUS BECAUSE ALL ACCEPTED REQUESTS ARE DELETED FROM THE DATABASE
-    pending_rejected_colleague_requests = colleague_requests.filter(
-        # THIS IS IMPORTANT TO CHECK WHETHER HE/SHE HAS SENT OR RECEIVED A REQUEST ALREADY 
-        Q(requesting_vet = request.user)|
-        Q(colleague_requested = request.user)
-    )
-    
-    # TO GET A LIST OF VETS A VET USER HAS COLLEAGUE REQUESTED AND THOSE HE / SHE HAS BEEN COLLEAGUE REQUESTED 
-    pending_rejected_colleague_requests = [colleague_request.colleague_requested if colleague_request.requesting_vet == request.user else colleague_request.requesting_vet for colleague_request in pending_rejected_colleague_requests ]
-    
+    pending_rejected_colleague_requests = [
+        colleague_request.colleague_requested if colleague_request.requesting_vet == request.user 
+        else colleague_request.requesting_vet 
+        for colleague_request in pending_rejected_colleague_requests_qs
+    ]
 
     colleague_requests_count = colleague_requests.filter(
         colleague_requested = request.user,
         status = "PENDING"
     ).count()
 
-    # appointments = Appointment.objects.filter(
-    #     Q(client__email = request.user.email)|
-    #     Q(vet__user__email = request.user.email)
-    # )
-    
     clinics = VetClinic.objects.all()
     
-    vets_count = vets.count
-    pending_consultations_count = pending_consultations.count
-    appointments_count = appointments.count
-    clinics_count = clinics.count
+    vets_count = vets.count()
+    pending_consultations_count = pending_consultations.count()
+    appointments_count = appointments.count()
+    clinics_count = clinics.count()
     
-    # user_notifications = request.user.notification_set.filter(is_read=False)
+    # OPTIMIZED: Use select_related for notifications
     user_notifications = get_objects_for_user(
         request.user,
         "dg_view_notification",
         klass = Notification
-    ).filter(
+    ).select_related('user').filter(
         is_read = False
     )
-    print(f"notifications: {user_notifications}")
+
+    return {
+        'vets':vets,
+        'known_vets':known_vets,
+        'vets_count':vets_count,
+        'all_vets_count':all_vets_count,
+        'consultations_with_vet':consultations_count_with_vets,
+        'pending_consultations_count':pending_consultations_count,
+        'appointments_count':appointments_count,
+        'clinics_count':clinics_count,
+        'notifications':user_notifications,
+        'colleague_requests_count':colleague_requests_count,
+        'pending_rejected_colleague_requests':pending_rejected_colleague_requests
+        
+    }
 
     return {
         'vets':vets,
@@ -545,6 +545,13 @@ def colleagueRequests(request):
 def referralColleagueRequest(request, pk):
     colleague_requested_user = User.objects.get(id=pk)
     requesting_vet_user = request.user
+    
+    # Check if already colleagues
+    if colleague_requested_user in requesting_vet_user.vet.referral_colleagues.all():
+        messages.info(request, "You are already colleagues with this vet")
+        return redirect("home")
+    
+    # Check for existing pending request
     pending_or_rejected_requests = ReferralColleagueRequest.objects.filter(
         requesting_vet = requesting_vet_user,
         colleague_requested = colleague_requested_user
@@ -554,15 +561,16 @@ def referralColleagueRequest(request, pk):
     )
     
     if pending_or_rejected_requests.count() == 0:
-        request = ReferralColleagueRequest.objects.create(
+        colleague_request = ReferralColleagueRequest.objects.create(
             requesting_vet = requesting_vet_user,
             colleague_requested = colleague_requested_user
         )
-        request.save()
-        # messages.success(request, "Colleague Request Sent!")
+        colleague_request.save()
+        messages.success(request, "Colleague Request Sent!")
         
         return redirect("home")
     else:
+        messages.warning(request, "You already have a pending or rejected request with this vet")
         return redirect("home")
 
 @login_required(login_url="login-page")
@@ -831,44 +839,39 @@ def createAppointment(request):
     form.fields["vet"].queryset = vets
     if request.method == 'POST':
         form = AppointmentForm(request.POST)
-        print(form.errors)
         if form.is_valid():
             appointment = form.save(commit=False)
             
             if appointment.scheduled_time_to <= appointment.scheduled_time_from:
-                messages.error(request, 'sorry please choose a future date!')
+                messages.error(request, 'Please choose an end time that is after the start time!')
                 return redirect('create-appointment')
-            # SHOULD RUN ON DJANGO SIGNALS 
             
-            # STILL CANT TELL WHEN ANOTHER APPOINTMENT IS ONGOING 
+            # Check for conflicting appointments on the same date with buffer time
+            from datetime import timedelta
+            import datetime as dt
+            buffer = timedelta(minutes=appointment.buffer_time_minutes)
+            
+            appointment_start = dt.datetime.combine(appointment.scheduled_date, appointment.scheduled_time_from)
+            appointment_end = dt.datetime.combine(appointment.scheduled_date, appointment.scheduled_time_to)
+            
             possible_conflicts = Appointment.objects.filter(
                 vet = appointment.vet,
-                scheduled_date=appointment.scheduled_date
-                
-                
-                # this code broke 
-                # scheduled_time_from__gte = appointment.scheduled_time_from, 
-                # scheduled_time_from__lte=appointment.scheduled_time_to, 
-                # scheduled_time_to__gte=appointment.scheduled_time_from, 
-                # scheduled_time_to__lte=appointment.scheduled_time_to
-                )
+                scheduled_date=appointment.scheduled_date,
+                status__in=["PENDING", "ACCEPTED"]
+            )
+            
             for possible_conflict in possible_conflicts:
-                if appointment.scheduled_time_from >= possible_conflict.scheduled_time_from and appointment.scheduled_time_from <= possible_conflict.scheduled_time_to or appointment.scheduled_time_to >= possible_conflict.scheduled_time_from and appointment.scheduled_time_to <= possible_conflict.scheduled_time_to:
-                    messages.error(request, "Sorry the slot isn't open" )
+                conflict_start = dt.datetime.combine(possible_conflict.scheduled_date, possible_conflict.scheduled_time_from)
+                conflict_end = dt.datetime.combine(possible_conflict.scheduled_date, possible_conflict.scheduled_time_to)
+                
+                # Check overlap with buffer time
+                if (appointment_start - buffer) < (conflict_end + buffer) and (appointment_end + buffer) > (conflict_start - buffer):
+                    messages.error(request, "Sorry the vet is not available at that time")
                     return redirect('create-appointment')
+            
             appointment.save()
             messages.success(request, 'You Successfully booked an appointment!')
             return redirect('home')
-                    
-           
-            
-            #IF NO CONFLICTS 
-            # if conflicts.count() == 0:
-            #     appointment.save()
-            #     return redirect('home')
-            # else:
-            #     messages.error(request, "Sorry the slot isn't open" )
-            #     return redirect('create-appointment')
         else:
             messages.error(request, 'Something went wrong!')
     context = {

@@ -1,93 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager, Group
+from django.utils import timezone
 from .validators import *
+from .constants import *
 from guardian.shortcuts import assign_perm
-
-# Create your models here.
-
-# VALIDATORS START
-
-# def validate_vet(value):
-#     user = User.objects.get(email=value)
-#     if user.role is not "VET":
-#         raise ValidationError("Sorry the User isn't a vet")
-#     return value
-
-# VALIDATORS END
-
-
-specialization_choices  = (
-    ('Small Animals', 'SMALL ANIMALS'),
-    ('Large Animals', 'LARGE ANIMALS'),
-    ('Poultry', 'Poultry'),
-    # ('SA && LA', 'SMALL ANIMALS AND LARGE ANIMALS')
-)
-
-salutation_choices = (
-    ('Dr', 'DOCTOR'),
-    ('Prof', 'PROFESSOR')
-)
-
-satisfaction_choices = (
-    ('Satisfied', 'SATISFIED'),
-    ('Not Satisfied', 'NOT SATISFIED')
-)
-
-services_choices = (
-    ('Consultation', 'CONSULTATION'),
-    ('Surgery', "SURGERY"),
-    ('Clinical Services', 'CLINICAL SERVICES'),
-    ('Obstetrical Services', 'OBSTETRICAL SERVICES'),
-    ('Nutrition Analysis', 'NUTRITION ANALYSIS'),
-    ('Feed Formulation', 'FEED FORMULATION')
-    
-)
-
-education_qualifications_choices = (
-    ('K.C.P.E', 'K.C.P.E'),
-    ('K.C.S.E', 'K.C.S.E'),
-    ('CERTIFICATE', 'CERTIFICATE'),
-    ('DIPLOMA', 'DIPLOMA'),
-    ('DEGREE', 'DEGREE'),
-    ('MASTERS DEGREE', 'MASTERS DEGREE'),
-    ('Phd', 'Phd')
-)
-
-request_status_choices = (
-    ('ACCEPTED', 'ACCEPTED'),
-    ('REJECTED', 'REJECTED'),
-    ('PENDING', 'PENDING')
-)
-
-
-# FOR THIS CREATE A COUNTY MODEL CLASS THAT HOLDS ALL THE TOWNS IN THE COUNTY...MAYBE LOOK FOR AN API SYSTEM 
-county_choices = (
-    ('Mombasa', 'MOMBASA'),
-    ('Nairobi', 'NAIROBI'),
-    ('Trans-Nzoia', 'TRANS-NZOIA'),
-    ('West Pokot', 'WEST POKOT'),
-    ('Marakwet', 'MARAKWET'),
-    ('Isiolo', 'ISIOLO'),
-    ('Kericho', 'KERICHO'),
-    ('Uasin-Gishu', 'UASIN-GISHU')
-
-)
-
-town_choices = (
-    ('Kitale', 'KITALE'),
-    ('Eldoret', 'ELDORET'),
-    ('Mombasa', 'Mombasa'),
-    ('Nairobi', 'NAIROBI'),
-    ('Kericho', 'KERICHO'),
-    ('Kapenguria', 'KAPENGURIA'),
-    ('Iten', 'ITEN'),
-    ('Isiolo', 'ISIOLO'),
-)
-
-sex_choices = (
-    ('M', 'MALE'),
-    ('F', 'FEMALE')
-)
+import datetime
+from .managers import (OptimizedConsultationManager, OptimizedAppointmentManager, 
+                       OptimizedNotificationManager)
 
 class User(AbstractUser):
     class Role(models.TextChoices):
@@ -109,8 +28,8 @@ class User(AbstractUser):
 
     avatar = models.ImageField(null=True, default="avatar.svg")
 
-    county = models.CharField(max_length=20, choices=county_choices, null=True)
-    town = models.CharField(max_length=20, choices=town_choices, null=True)
+    county = models.CharField(max_length=20, choices=COUNTY_CHOICES, null=True)
+    town = models.CharField(max_length=20, choices=TOWN_CHOICES, null=True)
 
 
     USERNAME_FIELD = 'email'
@@ -127,7 +46,7 @@ class User(AbstractUser):
             if self.is_superuser is False:
                 try:
                     group = Group.objects.get(name=self.role)
-                except:
+                except Group.DoesNotExist:
                     group = Group.objects.create(name=self.role)
                     
                 self.groups.add(group)
@@ -136,33 +55,6 @@ class User(AbstractUser):
                 admins = User.objects.filter(is_superuser=True)
                 for admin in admins:
                     assign_perm("dg_edit_user_profile", admin, self )
-                    
-                # if self.role == "ADMIN":
-                #     message = "Welcome Admin!"
-                # elif self.role == "APPUSER":
-                #     message = "Thank You For Joining! Get Solutions For all Your Animal Needs!"
-                # elif self.role == "VET":
-                #     message = "Thank You For Joining! Happy Consulting Doc!"
-                    
-                # try:
-                #     welcome_notification = Notification.objects.get(
-                #         user = self,
-                #         message = message
-                #     )
-                # except:
-                #     welcome_notification = None
-                 
-                # if welcome_notification is None:   
-                #     welcome_notification = Notification.objects.create(
-                #         user = self,
-                #         message = message
-                #     )
-                # else:
-                #     welcome_notification = Notification.objects.create(
-                #         user = self,
-                #         message = f"You Successfully Updated Your User Profile!"
-                #     )
-                # welcome_notification.save()
                 
             
         return super().save(*args, **kwargs)
@@ -197,10 +89,10 @@ class AppUser(User):
 
 class Vet(models.Model):
     user = models.OneToOneField(VetUser, on_delete=models.CASCADE)
-    salutation = models.CharField(max_length=5, choices=salutation_choices, default='Dr')
+    salutation = models.CharField(max_length=5, choices=SALUTATION_CHOICES, default='Dr')
     start_practice = models.DateField()
-    services = models.CharField(max_length=50, choices = services_choices, default='Clinical Services')
-    vet_speciality = models.CharField(max_length=20, choices = specialization_choices)
+    services = models.CharField(max_length=50, choices=SERVICES_CHOICES, default='Clinical Services')
+    vet_speciality = models.CharField(max_length=20, choices=SPECIALIZATION_CHOICES, db_index=True)
     consultations = models.IntegerField(default=0)
     successfull_consultations = models.IntegerField(default=0)
     licence_no = models.CharField(max_length=20, unique=True)
@@ -215,6 +107,9 @@ class Vet(models.Model):
 
     class Meta:
         ordering = ['licence_expired', '-successfull_consultations',  '-client_rating', 'start_practice']
+        indexes = [
+            models.Index(fields=['licence_expired', '-client_rating'], name='vet_active_rating_idx'),
+        ]
         
         
         
@@ -230,18 +125,26 @@ class ReferralColleagueRequest(models.Model):
     requesting_vet = models.ForeignKey(VetUser, on_delete=models.CASCADE, related_name="requesting_vet")
     colleague_requested = models.ForeignKey(VetUser, on_delete=models.CASCADE, related_name="requested_colleague")
     timestamp = models.DateTimeField(auto_now_add=True)
-    status = models.TextField(choices=request_status_choices, max_length=8, default="PENDING")
+    status = models.TextField(choices=REQUEST_STATUS_CHOICES, max_length=8, default="PENDING")
+    expires_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         permissions = [("dg_view_colleague_request", "OLP Can View Colleague Request"), ("dg_confirm_colleague_request", "OLP Can Confirm Colleague Request")]
         ordering = ['-timestamp']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['requesting_vet', 'colleague_requested'],
+                condition=models.Q(status='PENDING'),
+                name='unique_pending_colleague_request'
+            )
+        ]
     
 class EducationBackgroundDetail(models.Model):
     vet = models.ForeignKey(Vet, on_delete=models.SET_NULL, null=True)
     institution = models.CharField(max_length=50)
     joined = models.DateField()
     exited = models.DateField()
-    qualification = models.CharField(max_length=20, choices=education_qualifications_choices)
+    qualification = models.CharField(max_length=20, choices=EDUCATION_QUALIFICATIONS_CHOICES)
     
     class Meta:
         ordering = ['-joined']
@@ -287,8 +190,14 @@ class VetComment(models.Model):
         
 class ConsultationSatisfactionComment(VetComment):
     consultationobject = models.OneToOneField('Consultation', on_delete=models.CASCADE, null=True)
-    # satisfied = models.CharField(max_length=15, choices=satisfaction_choices, default='Satisfied')
     rate_vet = models.IntegerField(default=0, validators = [rate_validation])
+    
+    # NEW: Enhanced review system
+    review_text = models.TextField(null=True, blank=True)
+    vet_response = models.TextField(null=True, blank=True)
+    vet_response_date = models.DateTimeField(null=True, blank=True)
+    is_flagged = models.BooleanField(default=False)
+    flag_reason = models.TextField(null=True, blank=True)
     
     class Meta:
         permissions = [('dg_view_consultationcomment', 'OLP Can View ConsultationComment'), ("dg_can_leave_comment_for_vet", "OLP Can Leave Comment For Vet")]
@@ -304,36 +213,31 @@ class Consultation(models.Model):
     vet = models.ForeignKey(VetUser, on_delete=models.SET_NULL, null=True, related_name="vet_consulted")
     secondary_consultants = models.ManyToManyField(VetUser, related_name="vets_consulted")
     correspondents = models.ManyToManyField(VetComment, blank=True)
-    created = models.DateTimeField(auto_now_add=True, null=True)
-    # client_satisfied = models.BooleanField(default=False)
-    status = models.CharField(max_length=10, choices=request_status_choices,  default='PENDING')
+    created = models.DateTimeField(auto_now_add=True, null=True, db_index=True)
+    status = models.CharField(max_length=15, choices=CONSULTATION_STATUS_CHOICES, default='PENDING', db_index=True)
     client_left_comment = models.BooleanField(default=False)
     paid_for = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
     
-    # def get_corrected_created_time(self):
-    #     pass
-    
-    
-    
-    #PATIENT DETAILS
+    # PATIENT DETAILS
     patient_name = models.CharField(max_length=20, blank=True)
     
-    #SIGNALMENT
+    # SIGNALMENT
     species = models.CharField(max_length=20, null=True)
     age = models.SmallIntegerField(null=True)
-    sex = models.CharField(max_length=2, choices=sex_choices, null=True)
+    sex = models.CharField(max_length=2, choices=SEX_CHOICES, null=True)
     breed = models.CharField(max_length=20, null=True)
     color = models.CharField(max_length=20, null=True)
     
-    #HISTORY OF ILLNESS
+    # HISTORY OF ILLNESS
     history_of_illness = models.TextField(null=True)
-    
-    # THIS APPLIES FOR CLIENT AND VET WHO HAVE CONSULTED BEFORE 
-    # CONSULTATION_NO = MODELS.INTEGERFIELD()
 
     class Meta:
         permissions = [("dg_view_consultation", "OLP Can View Consultation"), ("request_consultation", "Can Request Consultation"), ("approve_consultation", "Can Approve Consultation")]
         ordering = ['-created']
+        indexes = [
+            models.Index(fields=['status', '-created'], name='consult_status_created_idx'),
+        ]
 
 class ConsultationFee(models.Model):
     transaction_id = models.CharField(max_length=13, null=True)
@@ -345,6 +249,11 @@ class ConsultationFee(models.Model):
     client = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="client")
     vet = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="consulting_vet")
     payment_number = models.CharField(max_length = 13, validators = [validatePhoneNumber], null = True)
+    
+    # NEW: Enhanced payment tracking
+    payment_status = models.CharField(max_length=15, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
+    refunded_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(null=True, blank=True)
 
 class Appointment(models.Model):
     client = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -354,15 +263,15 @@ class Appointment(models.Model):
     scheduled_time_to = models.TimeField(null=True)
     venue = models.CharField(max_length=20, blank=True, null=True)
     appointment_on = models.BooleanField(default=True)
-    status = models.CharField(max_length=10, choices=request_status_choices,  default='PENDING')
+    status = models.CharField(max_length=15, choices=APPOINTMENT_STATUS_CHOICES, default='PENDING', db_index=True)
+    buffer_time_minutes = models.IntegerField(default=30)
     
     class Meta:
         permissions = [("dg_view_appointment", "OLP Can View Appointment"), ("request_appointment", "Can Request Appointment"), ("approve_appointment", "Can Approve Appointment")]
         ordering = ['scheduled_date', 'scheduled_time_from']
-    # reason for appointment
-    
-    # def __str__(self):
-    #     return f"Vet: { self.vet.user.first_name } { self.vet.user.last_name }, Client: {self.client.first_name} {self.client.last_name}, {self.scheduled_date}  From: {self.scheduled_time_from} To: {self.scheduled_time_to}"
+        indexes = [
+            models.Index(fields=['status', 'scheduled_date'], name='appt_status_scheduled_idx'),
+        ]
 
 
 class VetClinic(models.Model):
@@ -370,8 +279,8 @@ class VetClinic(models.Model):
     county = models.CharField(max_length=20)
     town = models.CharField(max_length=20)
     location_description  = models.TextField()
-    specialization = models.CharField(max_length=20, choices=specialization_choices)
-    services = models.CharField(max_length=50, choices=services_choices)
+    specialization = models.CharField(max_length=20, choices=SPECIALIZATION_CHOICES)
+    services = models.CharField(max_length=50, choices=SERVICES_CHOICES)
     images = models.ImageField(null=True, default = "avatar.svg", upload_to="posted_images")
     # ratings = models.SmallIntegerField(max_length=5)
     # client_comments
@@ -383,15 +292,57 @@ class Notification(models.Model):
     message = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
-    # I NEED TO ADD DIFFERENT CATEGORIES FOR NOTIFICATION EE COLLEAGUE REQUESTS, REGISTRATION WELCOME MESSAGES ETC
+    
+    # NEW: Enhanced notification system
+    category = models.CharField(max_length=20, choices=NOTIFICATION_CATEGORY_CHOICES, default='SYSTEM')
+    related_object_id = models.IntegerField(null=True, blank=True)
+    related_object_type = models.CharField(max_length=50, null=True, blank=True)
     
     class Meta:
         permissions = [("dg_view_notification", "OLP Can View Notification")]
         ordering = ['-timestamp']
-    
-    
-# ADD A MODEL TO REPORT SUSPICIOUS ACCOUNT ACTIVITY
-    
-    
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-timestamp'], name='notif_user_read_ts_idx'),
+        ]
 
 
+# NEW MODELS FOR ENHANCED FUNCTIONALITY
+
+class VetAvailability(models.Model):
+    """Store vet working hours and availability"""
+    vet = models.ForeignKey(Vet, on_delete=models.CASCADE, related_name='availability_slots')
+    day_of_week = models.IntegerField(choices=DAY_OF_WEEK_CHOICES)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_available = models.BooleanField(default=True)
+    break_start = models.TimeField(null=True, blank=True)
+    break_end = models.TimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ('vet', 'day_of_week')
+        ordering = ['day_of_week', 'start_time']
+    
+    def __str__(self):
+        return f"{self.vet} - {self.get_day_of_week_display()} {self.start_time}-{self.end_time}"
+
+
+class AuditLog(models.Model):
+    """Track all critical actions for compliance and debugging"""
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=20, choices=AUDIT_ACTION_CHOICES)
+    model_name = models.CharField(max_length=50, db_index=True)
+    object_id = models.IntegerField()
+    old_values = models.JSONField(null=True, blank=True)
+    new_values = models.JSONField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['model_name', 'object_id'], name='action_log_model_obj_idx'),
+            models.Index(fields=['user', 'timestamp'], name='action_log_user_ts_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.action} on {self.model_name}#{self.object_id} by {self.user} at {self.timestamp}"
